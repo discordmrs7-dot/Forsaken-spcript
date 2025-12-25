@@ -2,6 +2,7 @@
 -- Forsaken ESP (Mobile / Delta)
 -- Toggle bằng nút on-screen
 -- Dev friendly
+warn("Forsaken ESP Loaded")
 
 if getgenv().ForsakenESP then return end
 getgenv().ForsakenESP = true
