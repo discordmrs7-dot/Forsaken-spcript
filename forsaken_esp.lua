@@ -1,114 +1,144 @@
+-- Forsaken Enhanced ESP (Mobile / Delta)
+-- Show Killer, Survivor, Items, Objectives
+if getgenv().ForsakenESPLoaded then return end
+getgenv().ForsakenESPLoaded = true
 
--- Forsaken ESP (Mobile / Delta)
--- Toggle bằng nút on-screen
--- Dev friendly
-warn("Forsaken ESP Loaded")
-
-if getgenv().ForsakenESP then return end
-getgenv().ForsakenESP = true
-
-local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
 local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
-local CoreGui = game:GetService("CoreGui")
 
-local ESP_ENABLED = true
-local ESP_LIST = {}
+-- Settings
+local settings = {
+    killerESP = true,
+    survivorESP = true,
+    itemESP = true,
+    objESP = true
+}
 
--- ===== UI TOGGLE =====
-local gui = Instance.new("ScreenGui")
-gui.Name = "ForsakenESP_UI"
-gui.Parent = CoreGui
+-- UI
+local screenGui = Instance.new("ScreenGui", game:GetService("CoreGui"))
+local mainFrame = Instance.new("Frame", screenGui)
+mainFrame.Size = UDim2.new(0, 160,0,180)
+mainFrame.Position = UDim2.new(0,10,0,150)
+mainFrame.BackgroundColor3 = Color3.fromRGB(25,25,25)
 
-local btn = Instance.new("TextButton")
-btn.Size = UDim2.new(0, 140, 0, 45)
-btn.Position = UDim2.new(0, 15, 0.5, -22)
-btn.BackgroundColor3 = Color3.fromRGB(25,25,25)
-btn.TextColor3 = Color3.fromRGB(255,255,255)
-btn.TextScaled = true
-btn.Text = "ESP : ON"
-btn.Parent = gui
+local function createButton(y, text, callback)
+    local btn = Instance.new("TextButton", mainFrame)
+    btn.Size = UDim2.new(0, 150,0,30)
+    btn.Position = UDim2.new(0,5,0,y)
+    btn.Text = text
+    btn.BackgroundColor3 = Color3.fromRGB(45,45,45)
+    btn.TextColor3 = Color3.fromRGB(255,255,255)
+    btn.MouseButton1Click:Connect(callback)
+end
 
-btn.MouseButton1Click:Connect(function()
-	ESP_ENABLED = not ESP_ENABLED
-	btn.Text = ESP_ENABLED and "ESP : ON" or "ESP : OFF"
+createButton(5, "Toggle Killer ESP", function()
+    settings.killerESP = not settings.killerESP
+end)
+createButton(45, "Toggle Survivor ESP", function()
+    settings.survivorESP = not settings.survivorESP
+end)
+createButton(85, "Toggle Item ESP", function()
+    settings.itemESP = not settings.itemESP
+end)
+createButton(125, "Toggle Obj ESP", function()
+    settings.objESP = not settings.objESP
 end)
 
--- ===== ESP FUNCTION =====
-local function createESP(part, textLabel, color)
-	if not part then return end
+-- Create drawing
+local espObjects = {}
 
-	local box = Drawing.new("Square")
-	box.Thickness = 1
-	box.Filled = false
-	box.Color = color
+local function newESP(part, label, color, typeKey)
+    local box = Drawing.new("Square")
+    box.Thickness = 1
+    box.Filled = false
+    box.Color = color
 
-	local text = Drawing.new("Text")
-	text.Center = true
-	text.Outline = true
-	text.Size = 13
-	text.Text = textLabel
-	text.Color = color
+    local txt = Drawing.new("Text")
+    txt.Center = true
+    txt.Size = 14
+    txt.Color = color
+    txt.Text = label
 
-	ESP_LIST[part] = {box = box, text = text}
-
-	RunService.RenderStepped:Connect(function()
-		if not part or not part.Parent then
-			box:Remove()
-			text:Remove()
-			ESP_LIST[part] = nil
-			return
-		end
-
-		local pos, onScreen = Camera:WorldToViewportPoint(part.Position)
-		if onScreen and ESP_ENABLED then
-			box.Size = Vector2.new(40, 60)
-			box.Position = Vector2.new(pos.X - 20, pos.Y - 30)
-			box.Visible = true
-
-			text.Position = Vector2.new(pos.X, pos.Y - 40)
-			text.Visible = true
-		else
-			box.Visible = false
-			text.Visible = false
-		end
-	end)
+    espObjects[part] = {box=box, txt=txt, type=typeKey}
 end
 
--- ===== PLAYER ESP =====
-local function setupPlayer(plr)
-	if plr == LocalPlayer then return end
+-- Update loop
+RunService.RenderStepped:Connect(function()
+    for part, data in pairs(espObjects) do
+        if not part or not part.Parent then
+            data.box:Remove()
+            data.txt:Remove()
+            espObjects[part] = nil
+        else
+            local pos, onScreen = Camera:WorldToViewportPoint(part.Position)
+            if onScreen then
+                local show = false
+                if data.type=="killer" and settings.killerESP then show=true end
+                if data.type=="survivor" and settings.survivorESP then show=true end
+                if data.type=="item" and settings.itemESP then show=true end
+                if data.type=="objective" and settings.objESP then show=true end
 
-	plr.CharacterAdded:Connect(function(char)
-		local hrp = char:WaitForChild("HumanoidRootPart", 5)
-		if not hrp then return end
+                data.box.Visible = show
+                data.txt.Visible = show
 
-		-- ⚠️ Nếu Forsaken dùng role khác, chỉnh chỗ này
-		if plr.Team and plr.Team.Name == "Killer" then
-			createESP(hrp, "[KILLER] "..plr.Name, Color3.fromRGB(255,0,0))
-		else
-			createESP(hrp, "[SURVIVOR] "..plr.Name, Color3.fromRGB(0,255,0))
-		end
-	end)
+                data.box.Position = Vector2.new(pos.X-20, pos.Y-25)
+                data.box.Size = Vector2.new(40,50)
+
+                data.txt.Position = Vector2.new(pos.X, pos.Y-40)
+            else
+                data.box.Visible = false
+                data.txt.Visible = false
+            end
+        end
+    end
+end)
+
+-- Player ESP
+for _, plr in pairs(Players:GetPlayers()) do
+    if plr ~= LocalPlayer then
+        plr.CharacterAdded:Connect(function(char)
+            local hrp = char:WaitForChild("HumanoidRootPart",5)
+            if hrp then
+                local team = plr.Team and plr.Team.Name or "Unknown"
+                if team=="Killer" then
+                    newESP(hrp, "[KILLER] "..plr.Name, Color3.fromRGB(255,0,0), "killer")
+                else
+                    newESP(hrp, "[SURVIVOR] "..plr.Name, Color3.fromRGB(0,255,0), "survivor")
+                end
+            end
+        end)
+    end
 end
 
-for _,p in pairs(Players:GetPlayers()) do
-	setupPlayer(p)
-end
-Players.PlayerAdded:Connect(setupPlayer)
+Players.PlayerAdded:Connect(function(plr)
+    plr.CharacterAdded:Connect(function(char)
+        local hrp = char:WaitForChild("HumanoidRootPart",5)
+        if hrp then
+            local team = plr.Team and plr.Team.Name or "Unknown"
+            if team=="Killer" then
+                newESP(hrp, "[KILLER] "..plr.Name, Color3.fromRGB(255,0,0), "killer")
+            else
+                newESP(hrp, "[SURVIVOR] "..plr.Name, Color3.fromRGB(0,255,0), "survivor")
+            end
+        end
+    end)
+end)
 
--- ===== ITEM ESP =====
-for _,obj in pairs(workspace:GetDescendants()) do
-	if obj:IsA("Tool") or obj:IsA("Model") then
-		local part = obj:FindFirstChildWhichIsA("BasePart")
-		if part then
-			local n = obj.Name:lower()
-			if n:find("med") then
-				createESP(part, "MEDKIT", Color3.fromRGB(0,200,255))
-			elseif n:find("cola") then
-				createESP(part, "BLOXY COLA", Color3.fromRGB(255,255,0))
-			end
-		end
-	end
+-- Items & Objectives ESP
+for _, obj in pairs(workspace:GetDescendants()) do
+    if obj:IsA("Model") or obj:IsA("Tool") then
+        local base = obj:FindFirstChildWhichIsA("BasePart")
+        if base then
+            local name = obj.Name:lower()
+            if name:find("med") or name:find("cola") then
+                newESP(base, obj.Name, Color3.fromRGB(255,255,0), "item")
+            end
+        end
+    elseif obj.Name:lower():find("generator") or obj.Name:lower():find("exit") then
+        if obj:IsA("BasePart") then
+            newESP(obj, obj.Name, Color3.fromRGB(0,200,255), "objective")
+        end
+    end
 end
