@@ -1,5 +1,7 @@
 -- Forsaken Enhanced ESP (Mobile / Delta)
--- Show Killer, Survivor, Items, Objectives
+if getgenv().ForsakenESP_LOADED then return end
+getgenv().ForsakenESP_LOADED = true-- Show Killer, Survivor, Items, Objectives
+
 if getgenv().ForsakenESPLoaded then return end
 getgenv().ForsakenESPLoaded = true
 
