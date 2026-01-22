@@ -1,0 +1,2 @@
+Error: ./input.lua:489: Ambiguous syntax: this looks like an argument list for a function call, but could also be a start of new statement; use ';' to separate statements
+stacktrace:
